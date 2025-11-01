@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人体姿态识别系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#8B5CF6',
+                        dark: '#1F2937',
+                        light: '#F3F4F6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .backdrop-blur-md {
+                backdrop-filter: blur(12px);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-transform-opacity {
+                transition-property: transform, opacity;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-light to-gray-200 min-h-screen font-sans">
+    <!-- 导航栏 -->
+    <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa fa-video-camera text-primary text-2xl mr-2"></i>
+                    <span class="text-xl font-bold text-dark">人体姿态识别系统</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="#" class="text-dark hover:text-primary transition-colors">
+                        <i class="fa fa-question-circle mr-1"></i>帮助
+                    </a>
+                    <a href="#" class="text-dark hover:text-primary transition-colors">
+                        <i class="fa fa-info-circle mr-1"></i>关于
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 介绍部分 -->
+        <section class="text-center mb-12">
+            <h1 class="text-[clamp(1.8rem,4vw,3rem)] font-bold text-dark mb-4 text-shadow">
+                智能人体姿态识别
+            </h1>
+            <p class="text-gray-600 max-w-3xl mx-auto text-lg">
+                上传视频文件，我们将自动为您生成带有骨架标记的姿态识别视频，支持各种复杂动作的实时分析
+            </p>
+        </section>
+
+        <!-- 上传区域 -->
+        <section class="mb-16">
+            <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 transform hover:shadow-xl transition-all">
+                <div id="drop-area" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary transition-colors">
+                    <input type="file" id="file-input" accept="video/*" class="hidden">
+                    <i class="fa fa-cloud-upload text-5xl text-primary mb-4"></i>
+                    <h3 class="text-xl font-semibold text-dark mb-2">拖放视频文件到此处</h3>
+                    <p class="text-gray-500 mb-4">或者</p>
+                    <button id="browse-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-colors">
+                        <i class="fa fa-folder-open mr-2"></i>浏览文件
+                    </button>
+                    <p class="text-xs text-gray-400 mt-4">支持 MP4, AVI, MOV 等常见视频格式，建议文件大小不超过 200MB</p>
+                </div>
+
+                <!-- 已选文件显示 -->
+                <div id="file-info" class="mt-6 hidden">
+                    <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fa fa-file-video-o text-primary text-xl mr-3"></i>
+                            <div>
+                                <p id="file-name" class="font-medium text-dark truncate max-w-md"></p>
+                                <p id="file-size" class="text-sm text-gray-500"></p>
+                            </div>
+                        </div>
+                        <button id="remove-file" class="text-red-500 hover:text-red-700 transition-colors">
+                            <i class="fa fa-times-circle text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 处理按钮 -->
+                <div class="mt-8 text-center">
+                    <button id="process-btn" disabled class="bg-secondary hover:bg-secondary/90 text-white font-semibold py-3 px-8 rounded-lg transition-all opacity-50 cursor-not-allowed">
+                        <i class="fa fa-play-circle mr-2"></i>开始处理视频
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 进度条 -->
+        <section id="progress-section" class="mb-12 hidden">
+            <div class="bg-white rounded-2xl shadow-md p-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-semibold text-dark"><i class="fa fa-cog fa-spin mr-2 text-primary"></i>视频处理中</h3>
+                    <span id="progress-percentage" class="text-primary font-medium">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="progress-bar" class="bg-primary h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="progress-message" class="mt-3 text-gray-600 text-sm">正在准备处理...</p>
+            </div>
+        </section>
+
+        <!-- 结果展示 -->
+        <section id="result-section" class="mb-12 hidden">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-dark">处理结果</h3>
+                    <a id="download-link" href="" class="bg-accent hover:bg-accent/90 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center">
+                        <i class="fa fa-download mr-2"></i>下载结果视频
+                    </a>
+                </div>
+                
+                <!-- 视频对比 -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 rounded-xl overflow-hidden">
+                        <div class="bg-dark text-white p-2 text-center font-medium">
+                            <i class="fa fa-play-circle mr-1"></i>原始视频
+                        </div>
+                        <div class="aspect-video bg-black flex items-center justify-center">
+                            <video id="original-video" controls class="w-full h-full object-contain">
+                                <source src="" type="video/mp4">
+                                您的浏览器不支持视频播放
+                            </video>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-xl overflow-hidden">
+                        <div class="bg-primary text-white p-2 text-center font-medium">
+                            <i class="fa fa-skeleton mr-1"></i>姿态识别结果
+                        </div>
+                        <div class="aspect-video bg-black flex items-center justify-center">
+                            <video id="result-video" controls class="w-full h-full object-contain">
+                                <source src="" type="video/mp4">
+                                您的浏览器不支持视频播放
+                            </video>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 功能说明 -->
+        <section class="grid md:grid-cols-3 gap-6 mb-12">
+            <div class="bg-white rounded-xl shadow p-6 transform hover:-translate-y-1 transition-transform">
+                <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                    <i class="fa fa-magic text-primary text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-dark mb-2">高精度识别</h3>
+                <p class="text-gray-600">基于MediaPipe的先进姿态估计算法，能够准确识别各种复杂动作和姿态</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow p-6 transform hover:-translate-y-1 transition-transform">
+                <div class="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center mb-4">
+                    <i class="fa fa-paint-brush text-secondary text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-dark mb-2">彩色骨架渲染</h3>
+                <p class="text-gray-600">不同身体部位使用不同颜色标记，清晰展示骨骼连接和动作轨迹</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow p-6 transform hover:-translate-y-1 transition-transform">
+                <div class="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mb-4">
+                    <i class="fa fa-bolt text-accent text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-dark mb-2">快速处理</h3>
+                <p class="text-gray-600">优化的处理流程，能够高效处理视频文件，尽快生成结果</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-3 gap-8">
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">人体姿态识别系统</h4>
+                    <p class="text-gray-400">利用先进的计算机视觉技术，为您提供专业的姿态分析服务</p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">相关链接</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-colors">使用教程</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-colors">常见问题</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-colors">API文档</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">联系我们</h4>
+                    <p class="text-gray-400">如有问题或建议，请随时联系我们</p>
+                    <div class="mt-4 flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors"><i class="fa fa-github text-xl"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors"><i class="fa fa-twitter text-xl"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors"><i class="fa fa-envelope text-xl"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-500">
+                <p>&copy; 2025 人体姿态识别系统. 保留所有权利.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 通知提示 -->
+    <div id="toast" class="fixed bottom-8 right-8 bg-dark text-white px-6 py-4 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-transform-opacity duration-300 flex items-center z-50">
+        <i id="toast-icon" class="fa fa-check-circle mr-3 text-secondary"></i>
+        <span id="toast-message">操作成功</span>
+    </div>
+
+    <script>
+        // 文件上传相关
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const browseBtn = document.getElementById('browse-btn');
+        const fileInfo = document.getElementById('file-info');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const removeFile = document.getElementById('remove-file');
+        const processBtn = document.getElementById('process-btn');
+        
+        // 进度相关
+        const progressSection = document.getElementById('progress-section');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const progressMessage = document.getElementById('progress-message');
+        
+        // 结果相关
+        const resultSection = document.getElementById('result-section');
+        const downloadLink = document.getElementById('download-link');
+        const originalVideo = document.getElementById('original-video');
+        const resultVideo = document.getElementById('result-video');
+        
+        // 提示相关
+        const toast = document.getElementById('toast');
+        const toastIcon = document.getElementById('toast-icon');
+        const toastMessage = document.getElementById('toast-message');
+        
+        // 文件拖放功能
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('bg-blue-50');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('bg-blue-50');
+        }
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFiles(files[0]);
+            }
+        }
+        
+        // 文件选择功能
+        browseBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                handleFiles(fileInput.files[0]);
+            }
+        });
+        
+        // 移除文件
+        removeFile.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+            processBtn.disabled = true;
+            processBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            resultSection.classList.add('hidden');
+        });
+        
+        // 处理选择的文件
+        function handleFiles(file) {
+            if (!file.type.match('video.*')) {
+                showToast('错误', '请选择视频文件', 'error');
+                return;
+            }
+            
+            if (file.size > 200 * 1024 * 1024) { // 200MB
+                showToast('警告', '文件大小超过200MB，可能导致处理缓慢', 'warning');
+            }
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.remove('hidden');
+            
+            processBtn.disabled = false;
+            processBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 处理视频
+        processBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            // 显示进度条
+            progressSection.classList.remove('hidden');
+            resultSection.classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('video', file);
+            
+            try {
+                // 模拟进度更新
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 5;
+                    if (progress > 95) progress = 95;
+                    updateProgress(progress, '正在处理视频...');
+                }, 1000);
+                
+                // 发送文件到服务器
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(progressInterval);
+                
+                if (response.ok) {
+                    updateProgress(100, '处理完成！');
+                    
+                    const data = await response.json();
+                    
+                    // 显示结果
+                    originalVideo.src = URL.createObjectURL(file);
+                    resultVideo.src = '/download?filename=' + data.output_filename;
+                    downloadLink.href = '/download?filename=' + data.output_filename;
+                    
+                    setTimeout(() => {
+                        progressSection.classList.add('hidden');
+                        resultSection.classList.remove('hidden');
+                        showToast('成功', '视频处理完成', 'success');
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.message || '处理失败');
+                }
+            } catch (error) {
+                console.error('处理失败:', error);
+                updateProgress(0, '处理失败: ' + error.message);
+                showToast('错误', '处理失败: ' + error.message, 'error');
+            }
+        });
+        
+        // 更新进度
+        function updateProgress(percentage, message) {
+            progressBar.style.width = percentage + '%';
+            progressPercentage.textContent = percentage.toFixed(1) + '%';
+            progressMessage.textContent = message;
+        }
+        
+        // 显示提示框
+        function showToast(title, message, type = 'success') {
+            toastMessage.textContent = message;
+            
+            // 设置图标和颜色
+            if (type === 'success') {
+                toastIcon.className = 'fa fa-check-circle mr-3 text-secondary';
+            } else if (type === 'error') {
+                toastIcon.className = 'fa fa-exclamation-circle mr-3 text-red-500';
+            } else if (type === 'warning') {
+                toastIcon.className = 'fa fa-exclamation-triangle mr-3 text-yellow-500';
+            }
+            
+            // 显示提示框
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
